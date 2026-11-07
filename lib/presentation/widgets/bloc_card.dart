@@ -236,16 +236,20 @@ class BlocCard extends StatelessWidget {
                                 color: Color(0xFFFFD54F),
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                letterSpacing: 1.1,
+                                letterSpacing: 1.0,
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              '${dayInfo.lunarDate.day.toString().padLeft(2, '0')}/${dayInfo.lunarDate.month.toString().padLeft(2, '0')}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                '${dayInfo.lunarDate.day.toString().padLeft(2, '0')}/${dayInfo.lunarDate.month.toString().padLeft(2, '0')}',
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
                             if (dayInfo.lunarDate.isLeap)
@@ -334,14 +338,16 @@ class BlocCard extends StatelessWidget {
                             color: const Color(0xFFFFD54F),
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            dayInfo.isHoangDao
-                                ? 'Ngày Hoàng Đạo (Tốt)'
-                                : 'Ngày Hắc Đạo',
-                            style: const TextStyle(
-                              color: Color(0xFFFFD54F),
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.bold,
+                          Flexible(
+                            child: Text(
+                              dayInfo.isHoangDao
+                                  ? 'Ngày Hoàng Đạo (Tốt)'
+                                  : 'Ngày Hắc Đạo',
+                              style: const TextStyle(
+                                color: Color(0xFFFFD54F),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -370,12 +376,14 @@ class BlocCard extends StatelessWidget {
                             color: Color(0xFF2E7D32),
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            'Tiết khí: ${dayInfo.solarTerm}',
-                            style: const TextStyle(
-                              color: Color(0xFF3E2723),
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
+                          Flexible(
+                            child: Text(
+                              'Tiết khí: ${dayInfo.solarTerm}',
+                              style: const TextStyle(
+                                color: Color(0xFF3E2723),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],

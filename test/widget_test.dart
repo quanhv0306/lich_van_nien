@@ -147,5 +147,23 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.home);
     await tester.pumpAndSettle();
     expect(find.text(today.day.toString().padLeft(2, '0')), findsWidgets);
+
+    // 4. Kiểm tra màn hình nhỏ (360px) với textScaler lớn không bị tràn chữ (overflow)
+    tester.view.physicalSize = const Size(360, 780);
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(
+          size: Size(360, 780),
+          textScaler: TextScaler.linear(1.35),
+        ),
+        child: const LichVanNienApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Chuyển qua tab Lịch Tháng (nơi có ô ngày 9/11 -> 1/10 ÂL và bảng Lý Thuần Phong)
+    await tester.tap(find.text('Lịch Tháng'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 }

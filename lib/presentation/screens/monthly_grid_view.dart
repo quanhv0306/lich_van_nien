@@ -248,9 +248,10 @@ class MonthlyGridView extends StatelessWidget {
               itemCount: rowCount * 7,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
-                mainAxisSpacing: 6,
-                crossAxisSpacing: 6,
-                childAspectRatio: 1.0,
+                mainAxisSpacing: 5,
+                crossAxisSpacing: 5,
+                // Tăng chiều cao ô ngày để ngày Dương (trên-trái) và ngày Âm (dưới-phải) không bao giờ đè nhau
+                childAspectRatio: 0.85,
               ),
               itemBuilder: (context, index) {
                 final date = cells[index];
@@ -258,7 +259,7 @@ class MonthlyGridView extends StatelessWidget {
                   return Container(
                     decoration: BoxDecoration(
                       color: Colors.brown.withValues(alpha: 0.03),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   );
                 }
@@ -295,7 +296,7 @@ class MonthlyGridView extends StatelessWidget {
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: () => onDateSelected(date),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     child: Ink(
                       decoration: BoxDecoration(
                         color: isSelected
@@ -305,7 +306,7 @@ class MonthlyGridView extends StatelessWidget {
                                   : (isToday
                                         ? const Color(0xFFFFF3CD)
                                         : Colors.white)),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: isSelected
                               ? const Color(0xFFFFD54F)
@@ -316,76 +317,93 @@ class MonthlyGridView extends StatelessWidget {
                                           ? const Color(0xFFD4AF37)
                                           : Colors.grey.shade200)),
                           width: (isSelected || isToday || isMung1OrRam)
-                              ? 1.5
+                              ? 1.4
                               : 1.0,
                         ),
                       ),
-                      padding: const EdgeInsets.all(6),
-                      child: Stack(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 4,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Góc trên bên trái: Số ngày Dương lịch
-                          Align(
-                            alignment: Alignment.topLeft,
-                            child: Text(
-                              '${date.day}',
-                              style: TextStyle(
-                                fontSize: 15,
-                                height: 1.05,
-                                fontWeight: FontWeight.w800,
-                                color: solarTextColor,
-                              ),
-                            ),
-                          ),
-
-                          // Góc trên bên phải: Chấm nhỏ báo ngày Hoàng Đạo
-                          if (info.isHoangDao)
-                            Align(
-                              alignment: Alignment.topRight,
-                              child: Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isSelected
-                                      ? const Color(0xFFFFD54F)
-                                      : const Color(0xFFFFB300),
+                          // Hàng trên: Số ngày Dương lịch (góc trái) & Chấm Hoàng Đạo (góc phải)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.topLeft,
+                                  child: Text(
+                                    '${date.day}',
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      height: 1.0,
+                                      fontWeight: FontWeight.w800,
+                                      color: solarTextColor,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              if (info.isHoangDao)
+                                Container(
+                                  width: 5.5,
+                                  height: 5.5,
+                                  margin: const EdgeInsets.only(top: 2),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isSelected
+                                        ? const Color(0xFFFFD54F)
+                                        : const Color(0xFFFFB300),
+                                  ),
+                                ),
+                            ],
+                          ),
 
-                          // Góc dưới bên phải: Số ngày Âm lịch (đánh dấu đỏ cho Mùng 1 & Rằm)
+                          // Hàng dưới: Số ngày Âm lịch (góc dưới bên phải, luôn nằm trên 1 dòng nhờ FittedBox)
                           Align(
                             alignment: Alignment.bottomRight,
-                            child: Container(
-                              padding: isMung1OrRam
-                                  ? const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 1,
-                                    )
-                                  : EdgeInsets.zero,
-                              decoration: isMung1OrRam
-                                  ? BoxDecoration(
-                                      color: isSelected
-                                          ? const Color(0xFFFFD54F)
-                                          : const Color(0xFFC62828),
-                                      borderRadius: BorderRadius.circular(6),
-                                    )
-                                  : null,
-                              child: Text(
-                                lunarText,
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  height: 1.1,
-                                  fontWeight: isMung1OrRam
-                                      ? FontWeight.w800
-                                      : FontWeight.w600,
-                                  color: isMung1OrRam
-                                      ? (isSelected
-                                            ? const Color(0xFF8E0000)
-                                            : Colors.white)
-                                      : (isSelected
-                                            ? const Color(0xFFFFE082)
-                                            : const Color(0xFF6D4C41)),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.bottomRight,
+                              child: Container(
+                                padding: isMung1OrRam
+                                    ? const EdgeInsets.symmetric(
+                                        horizontal: 3.5,
+                                        vertical: 1,
+                                      )
+                                    : EdgeInsets.zero,
+                                decoration: isMung1OrRam
+                                    ? BoxDecoration(
+                                        color: isSelected
+                                            ? const Color(0xFFFFD54F)
+                                            : const Color(0xFFC62828),
+                                        borderRadius: BorderRadius.circular(4),
+                                      )
+                                    : null,
+                                child: Text(
+                                  lunarText,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    height: 1.05,
+                                    fontWeight: isMung1OrRam
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isMung1OrRam
+                                        ? (isSelected
+                                              ? const Color(0xFF8E0000)
+                                              : Colors.white)
+                                        : (isSelected
+                                              ? const Color(0xFFFFE082)
+                                              : const Color(0xFF6D4C41)),
+                                  ),
                                 ),
                               ),
                             ),
@@ -448,9 +466,11 @@ class _LegendDot extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF5D4037)),
+        Flexible(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF5D4037)),
+          ),
         ),
       ],
     );

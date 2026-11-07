@@ -160,22 +160,27 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
       backgroundColor: const Color(0xFFA61C1C),
       foregroundColor: const Color(0xFFFFD54F),
       elevation: 0,
+      titleSpacing: 12,
       title: const Row(
         children: [
           Icon(
             Icons.calendar_today_rounded,
-            size: 20,
+            size: 19,
             color: Color(0xFFFFD54F),
           ),
-          SizedBox(width: 10),
-          Flexible(
-            child: Text(
-              'LỊCH VẠN NIÊN VIỆT NAM',
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 17,
-                letterSpacing: 1.1,
+          SizedBox(width: 8),
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'LỊCH VẠN NIÊN VIỆT NAM',
+                maxLines: 1,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16.5,
+                  letterSpacing: 0.8,
+                ),
               ),
             ),
           ),

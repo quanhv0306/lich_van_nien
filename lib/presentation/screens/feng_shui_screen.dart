@@ -116,7 +116,7 @@ class _FengShuiScreenState extends State<FengShuiScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  ' Bảng Việc Nên Làm & Kiêng Cữ • Trực ${info.truc.name}',
+                                  'Bảng Việc Nên Làm & Kiêng Cữ • Trực ${info.truc.name}',
                                   style: const TextStyle(
                                     fontSize: 16.5,
                                     fontWeight: FontWeight.w900,
@@ -298,10 +298,10 @@ class _FengShuiScreenState extends State<FengShuiScreen> {
                               children: [
                                 // Khung Giờ Chi & Khoảng thời gian
                                 Container(
-                                  width: 112,
+                                  width: 102,
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 6,
+                                    horizontal: 6,
+                                    vertical: 8,
                                   ),
                                   decoration: BoxDecoration(
                                     color: item.isGood
@@ -311,20 +311,28 @@ class _FengShuiScreenState extends State<FengShuiScreen> {
                                   ),
                                   child: Column(
                                     children: [
-                                      Text(
-                                        'Giờ ${item.chi}',
-                                        style: const TextStyle(
-                                          color: Color(0xFFFFD54F),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13.5,
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          'Giờ ${item.chi}',
+                                          maxLines: 1,
+                                          style: const TextStyle(
+                                            color: Color(0xFFFFD54F),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13.5,
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        item.timeRange,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
+                                      const SizedBox(height: 3),
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          item.timeRange,
+                                          maxLines: 1,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -332,13 +340,17 @@ class _FengShuiScreenState extends State<FengShuiScreen> {
                                 ),
                                 const SizedBox(width: 12),
 
-                                // Tên cung Lý Thuần Phong + Luận giải
+                                // Tên cung Lý Thuần Phong + Luận giải (dùng Wrap để không bao giờ tràn màn hình)
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Row(
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 4,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
                                         children: [
                                           Text(
                                             item.name,
@@ -350,7 +362,6 @@ class _FengShuiScreenState extends State<FengShuiScreen> {
                                                   : const Color(0xFFB71C1C),
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
                                           Container(
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 8,
@@ -378,12 +389,12 @@ class _FengShuiScreenState extends State<FengShuiScreen> {
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 5),
                                       Text(
                                         item.description,
                                         style: const TextStyle(
                                           fontSize: 13,
-                                          height: 1.35,
+                                          height: 1.38,
                                           color: Color(0xFF3E2723),
                                         ),
                                       ),
