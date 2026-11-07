@@ -1,0 +1,108 @@
+{
+  "truc": [
+    {
+      "name": "Kiến",
+      "good": "Xuất hành, giá thú, cầu tài lộc, khai trương, nhậm chức",
+      "bad": "Động thổ, chôn cất, đào giếng, lợp nhà"
+    },
+    {
+      "name": "Trừ",
+      "good": "Cúng tế, cầu phúc, giải hạn, chữa bệnh, dọn dẹp nhà cửa",
+      "bad": "Khai trương, xuất hành xa, ký kết hợp đồng lớn"
+    },
+    {
+      "name": "Mãn",
+      "good": "Cầu tài, khai trương, xuất hành,祭 tự, sửa kho",
+      "bad": "Chôn cất, kiện tụng, nhậm chức"
+    },
+    {
+      "name": "Bình",
+      "good": "Tu tạo, sửa chữa nhà cửa, nhập kho, cưới hỏi, giao dịch",
+      "bad": "Đào mương, chôn cất"
+    },
+    {
+      "name": "Định",
+      "good": "Ký kết hợp đồng, buôn bán, nhập học, làm chuồng trại",
+      "bad": "Thưa kiện, xuất hành đường xa"
+    },
+    {
+      "name": "Chấp",
+      "good": "Xây dựng, tu sửa, gieo trồng, cưới hỏi",
+      "bad": "Xuất tiền của, dời nhà, đi xa"
+    },
+    {
+      "name": "Phá",
+      "good": "Phá dỡ công trình cũ, chữa bệnh, giải trừ",
+      "bad": "Khai trương, cưới hỏi, ký hợp đồng, mua sắm lớn"
+    },
+    {
+      "name": "Nguy",
+      "good": "Cúng bái, cầu an, kê giường",
+      "bad": "Đi thuyền, leo cao, xuất hành xa, động thổ"
+    },
+    {
+      "name": "Thành",
+      "good": "Khai trương, nhập học, cưới hỏi, dời nhà, cầu tài lộc",
+      "bad": "Kiện tụng, tranh chấp"
+    },
+    {
+      "name": "Thu",
+      "good": "Thu hoạch, cất trữ, mua bán,纳 tài, lập khế ước",
+      "bad": "An táng, khởi công, xuất hành"
+    },
+    {
+      "name": "Khai",
+      "good": "Khai trương, động thổ, cưới hỏi, nhậm chức, xuất hành",
+      "bad": "An táng, tranh chấp"
+    },
+    {
+      "name": "Bế",
+      "good": "Đắp đê, lấp lỗ, xây tường, cất giữ tài vật",
+      "bad": "Khai trương, xuất hành, nhậm chức, cưới hỏi"
+    }
+  ],
+  "tu": [
+    { "name": "Giác", "animal": "Giao long", "type": "Cát", "meaning": "Thuận lợi cho thi cử, cưới hỏi, xây dựng." },
+    { "name": "C亢 (Cang)", "animal": "Rồng", "type": "Hung", "meaning": "Kỵ cưới hỏi, khởi công xây dựng." },
+    { "name": "Đê", "animal": "Lạc hoàn", "type": "Hung", "meaning": "Kỵ khai trương, cưới hỏi, đi thuyền." },
+    { "name": "Phòng", "animal": "Thỏ", "type": "Cát", "meaning": "Đại cát, vượng tài lộc, cưới hỏi, xây cất đều tốt." },
+    { "name": "Tâm", "animal": "Cáo", "type": "Hung", "meaning": "Kỵ tạo tác, cưới hỏi, tranh tụng." },
+    { "name": "Vĩ", "animal": "Hổ", "type": "Cát", "meaning": "Tốt cho hôn nhân, khởi tạo, cầu tài." },
+    { "name": "Cơ", "animal": "Báo", "type": "Cát", "meaning": "Khai trương, tu tạo, thu tài lộc rất tốt." },
+    { "name": "Đẩu", "animal": "Giải", "type": "Cát", "meaning": "Thuận lợi mở hàng, cầu công danh, xây dựng." },
+    { "name": "Ngưu", "animal": "Trâu", "type": "Hung", "meaning": "Kỵ cưới gả, xuất hành đường thủy." },
+    { "name": "Nữ", "animal": "Dơi", "type": "Hung", "meaning": "Kỵ khởi tạo, tranh chấp, cưới hỏi." },
+    { "name": "Hư", "animal": "Chuột", "type": "Hung", "meaning": "Không nên động thổ, khai trương." },
+    { "name": "Nguy", "animal": "Chim én", "type": "Hung", "meaning": "Kỵ xây cất, đi xa, cưới hỏi." },
+    { "name": "Thất", "animal": "Heo", "type": "Cát", "meaning": "Tốt cho khai trương, cưới hỏi, xây dựng, cầu tài." },
+    { "name": "Bích", "animal": "Rái cá", "type": "Cát", "meaning": "Khai trương, cưới hỏi, khởi công đại cát." },
+    { "name": "Khuê", "animal": "Chó sói", "type": "Hung", "meaning": "Tốt cho tế tự nhưng kỵ khai trương, động thổ." },
+    { "name": "Lâu", "animal": "Chó", "type": "Cát", "meaning": "Thuận lợi mọi việc: hôn nhân, xây dựng, giao dịch." },
+    { "name": "Vị", "animal": "Chim trĩ", "type": "Cát", "meaning": "Tốt cho khởi công, cưới hỏi, cầu tài." },
+    { "name": "Mão", "animal": "Gà", "type": "Hung", "meaning": "Kỵ cưới hỏi, làm nhà, khai trương." },
+    { "name": "Tất", "animal": "Quạ", "type": "Cát", "meaning": "Đại cát cho nông nghiệp, xây dựng, cưới hỏi." },
+    { "name": "Chủy", "animal": "Khỉ", "type": "Hung", "meaning": "Kỵ khởi công, an táng, xuất hành." },
+    { "name": "Sâm", "animal": "Vượn", "type": "Cát", "meaning": "Tốt cho cầu danh, khai trương, xuất hành." },
+    { "name": "Tỉnh", "animal": "Hươu bến", "type": "Cát", "meaning": "Thi cử, nhậm chức, xây dựng thuận lợi." },
+    { "name": "Quỷ", "animal": "Dê", "type": "Hung", "meaning": "Kỵ cưới hỏi, động thổ, đi xa." },
+    { "name": "Liễu", "animal": "Hoẵng", "type": "Hung", "meaning": "Kỵ khởi tạo, an táng, cưới gả." },
+    { "name": "Tinh", "animal": "Ngựa", "type": "Hung", "meaning": "Tốt cho xây bếp nhưng kỵ cưới hỏi, an táng." },
+    { "name": "Chẩn", "animal": "Giun", "type": "Cát", "meaning": "Xuất hành, cưới hỏi, khởi tạo, giao dịch đại lợi." },
+    { "name": "Dực", "animal": "Rắn", "type": "Hung", "meaning": "Kỵ cưới hỏi, động thổ, xuất hành xa." },
+    { "name": "Trương", "animal": "Nai", "type": "Cát", "meaning": "Khai trương, hôn nhân, cầu tài lộc rất tốt." }
+  ],
+  "gio_hoang_dao": {
+    "Tý": ["Tý", "Sửu", "Mão", "Ngọ", "Thân", "Dậu"],
+    "Ngọ": ["Tý", "Sửu", "Mão", "Ngọ", "Thân", "Dậu"],
+    "Sửu": ["Dần", "Mão", "Tỵ", "Thân", "Tuất", "Hợi"],
+    "Mùi": ["Dần", "Mão", "Tỵ", "Thân", "Tuất", "Hợi"],
+    "Dần": ["Tý", "Sửu", "Thìn", "Tỵ", "Mùi", "Tuất"],
+    "Thân": ["Tý", "Sửu", "Thìn", "Tỵ", "Mùi", "Tuất"],
+    "Mão": ["Tý", "Dần", "Mão", "Ngọ", "Mùi", "Dậu"],
+    "Dậu": ["Tý", "Dần", "Mão", "Ngọ", "Mùi", "Dậu"],
+    "Thìn": ["Dần", "Thìn", "Tỵ", "Thân", "Dậu", "Hợi"],
+    "Tuất": ["Dần", "Thìn", "Tỵ", "Thân", "Dậu", "Hợi"],
+    "Tỵ": ["Sửu", "Thìn", "Ngọ", "Mùi", "Tuất", "Hợi"],
+    "Hợi": ["Sửu", "Thìn", "Ngọ", "Mùi", "Tuất", "Hợi"]
+  }
+}
