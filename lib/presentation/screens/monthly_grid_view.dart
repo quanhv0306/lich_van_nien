@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
+import '../../core/sync_engine.dart';
 import '../../data/models/day_info.dart';
+import '../../data/repositories/event_repository.dart';
+import '../widgets/add_event_dialog.dart';
 
-/// Lưới lịch tháng 7x5 hoặc 7x6:
-/// - Header: Nút chuyển tháng trước/sau, chọn nhanh Tháng và chọn nhanh Năm.
-/// - Từng ô ngày: Số ngày Dương lịch ở góc trên bên trái, số ngày Âm lịch ở góc dưới bên phải.
-/// - Đánh dấu màu đỏ nổi bật cho ngày Mùng 1 và Rằm (15 Âm lịch).
-/// - Chạm vào ngày bất kỳ sẽ cập nhật dữ liệu hiển thị chi tiết của ngày đó.
+/// Lưới lịch tháng thông minh & Quản lý Sự kiện / Ghi chú:
+/// 1. Tương tác chọn ngày: Chạm vào ô ngày bất kỳ để chọn, hiển thị viền nổi bật.
+/// 2. Danh sách sự kiện ngày được chọn: Lọc cả sự kiện ngày Dương và ngày Giỗ/Sinh nhật lặp theo Âm lịch qua EventRepository.
+/// 3. Nút Thêm ghi chú / FAB (+): Tự động điền ngày đang chọn làm mặc định, hỗ trợ chọn thể loại và chu kỳ lặp Âm/Dương.
+/// 4. Chỉ báo chấm tròn (Indicators):
+///    - 1..3 sự kiện: Hàng chấm màu theo thể loại (Giỗ chạp: cam, Sinh nhật: hồng/đỏ, Công việc: xanh dương, Khác: xanh lá).
+///    - >3 sự kiện: 2 chấm màu đầu tiên kèm badge số lượng (+N).
+/// 5. Tối ưu hiệu năng: Cache gom nhóm sự kiện theo tháng `getEventsMapForMonth` giúp lướt tháng mượt mà 60fps.
+/// 6. Thiết kế Responsive:
+///    - Desktop (>= 720px): Layout 2 cột (Lưới tháng 65% bên trái, Danh sách ghi chú 35% bên phải).
+///    - Mobile (< 720px): Lưới tháng ở trên, danh sách ghi chú ở dưới kèm nút (+) nổi.
 class MonthlyGridView extends StatelessWidget {
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDateSelected;
@@ -64,6 +73,103 @@ class MonthlyGridView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: SyncEngine.instance,
+      builder: (context, _) {
+        // Tối ưu hiệu năng: Tính trước và cache toàn bộ sự kiện trong tháng (O(1) cho mỗi ô ngày)
+        final eventsMap = EventRepository.instance.getEventsMapForMonth(
+          selectedDate.month,
+          selectedDate.year,
+        );
+        final selectedDayEvents = EventRepository.instance.getEventsForDate(selectedDate);
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isDesktop = constraints.maxWidth >= 720;
+
+            if (isDesktop) {
+              return _buildDesktopLayout(context, eventsMap, selectedDayEvents);
+            } else {
+              return _buildMobileLayout(context, eventsMap, selectedDayEvents);
+            }
+          },
+        );
+      },
+    );
+  }
+
+  /// Bố cục Desktop / Màn hình rộng (>= 720px):
+  /// - Cột trái (65%): Lưới lịch tháng + Thanh chuyển tháng/năm
+  /// - Cột phải (35%): Chi tiết ngày được chọn + Quản lý Sự kiện / Ghi chú (Thêm / Sửa / Xóa)
+  Widget _buildDesktopLayout(
+    BuildContext context,
+    Map<int, List<CalendarEvent>> eventsMap,
+    List<CalendarEvent> selectedDayEvents,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Lưới tháng (65%)
+          Expanded(
+            flex: 65,
+            child: _buildCalendarCard(context, eventsMap),
+          ),
+          const SizedBox(width: 14),
+
+          // Danh sách chi tiết sự kiện của ngày đang chọn (35%)
+          Expanded(
+            flex: 35,
+            child: _buildDayDetailAndEventsCard(context, selectedDayEvents),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Bố cục Mobile (< 720px):
+  /// - Nửa trên: Lưới lịch tháng
+  /// - Nửa dưới: Thẻ danh sách ghi chú của ngày được chọn và nút (+) nổi
+  Widget _buildMobileLayout(
+    BuildContext context,
+    Map<int, List<CalendarEvent>> eventsMap,
+    List<CalendarEvent> selectedDayEvents,
+  ) {
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildCalendarCard(context, eventsMap),
+              const SizedBox(height: 14),
+              _buildDayDetailAndEventsCard(context, selectedDayEvents),
+            ],
+          ),
+        ),
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton(
+            heroTag: 'fab_monthly_add_event',
+            onPressed: () => AddEventDialog.show(context, initialDate: selectedDate),
+            backgroundColor: const Color(0xFFA61C1C),
+            foregroundColor: const Color(0xFFFFD54F),
+            tooltip: 'Thêm ghi chú ngày ${selectedDate.day}/${selectedDate.month}',
+            child: const Icon(Icons.add_rounded, size: 28),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Card Lưới lịch tháng + Header chuyển tháng & năm
+  Widget _buildCalendarCard(
+    BuildContext context,
+    Map<int, List<CalendarEvent>> eventsMap,
+  ) {
     final cells = _generateMonthCells(selectedDate.year, selectedDate.month);
     final int rowCount = cells.length ~/ 7; // 5 hoặc 6 hàng (7x5 hoặc 7x6)
     final today = DateTime.now();
@@ -72,7 +178,7 @@ class MonthlyGridView extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.all(16),
+      margin: EdgeInsets.zero,
       color: const Color(0xFFFFFDF9),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
@@ -250,8 +356,8 @@ class MonthlyGridView extends StatelessWidget {
                 crossAxisCount: 7,
                 mainAxisSpacing: 5,
                 crossAxisSpacing: 5,
-                // Tăng chiều cao ô ngày để ngày Dương (trên-trái) và ngày Âm (dưới-phải) không bao giờ đè nhau
-                childAspectRatio: 0.85,
+                // Chiều cao cân đối giúp hiển thị ngày Dương, chấm sự kiện và ngày Âm không bị tràn
+                childAspectRatio: 0.78,
               ),
               itemBuilder: (context, index) {
                 final date = cells[index];
@@ -273,6 +379,9 @@ class MonthlyGridView extends StatelessWidget {
                     date.day == today.day;
                 final isSunday = date.weekday == DateTime.sunday;
                 final isSaturday = date.weekday == DateTime.saturday;
+
+                // Danh sách sự kiện của ngày này từ cache O(1)
+                final dayEvents = eventsMap[date.day] ?? const <CalendarEvent>[];
 
                 // Kiểm tra ngày Mùng 1 hoặc Rằm (15 Âm lịch)
                 final bool isMung1OrRam =
@@ -297,7 +406,8 @@ class MonthlyGridView extends StatelessWidget {
                   child: InkWell(
                     onTap: () => onDateSelected(date),
                     borderRadius: BorderRadius.circular(10),
-                    child: Ink(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? const Color(0xFFA61C1C)
@@ -316,20 +426,27 @@ class MonthlyGridView extends StatelessWidget {
                                     : (isToday
                                           ? const Color(0xFFD4AF37)
                                           : Colors.grey.shade200)),
-                          width: (isSelected || isToday || isMung1OrRam)
-                              ? 1.4
-                              : 1.0,
+                          width: isSelected ? 2.0 : (isToday || isMung1OrRam ? 1.4 : 1.0),
                         ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFFA61C1C).withValues(alpha: 0.35),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
                       ),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 4,
+                        horizontal: 3,
+                        vertical: 3,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Hàng trên: Số ngày Dương lịch (góc trái) & Chấm Hoàng Đạo (góc phải)
+                          // Hàng trên: Số ngày Dương lịch (trái) & Chấm Hoàng Đạo (phải)
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -342,7 +459,7 @@ class MonthlyGridView extends StatelessWidget {
                                     '${date.day}',
                                     maxLines: 1,
                                     style: TextStyle(
-                                      fontSize: 13.5,
+                                      fontSize: 13,
                                       height: 1.0,
                                       fontWeight: FontWeight.w800,
                                       color: solarTextColor,
@@ -352,9 +469,9 @@ class MonthlyGridView extends StatelessWidget {
                               ),
                               if (info.isHoangDao)
                                 Container(
-                                  width: 5.5,
-                                  height: 5.5,
-                                  margin: const EdgeInsets.only(top: 2),
+                                  width: 5,
+                                  height: 5,
+                                  margin: const EdgeInsets.only(top: 1),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: isSelected
@@ -365,7 +482,10 @@ class MonthlyGridView extends StatelessWidget {
                             ],
                           ),
 
-                          // Hàng dưới: Số ngày Âm lịch (góc dưới bên phải, luôn nằm trên 1 dòng nhờ FittedBox)
+                          // Hàng giữa: CHỈ BÁO GHI CHÚ TRÊN TỪNG Ô NGÀY (MONTHLY CELL INDICATORS)
+                          _buildEventIndicators(dayEvents, isSelected),
+
+                          // Hàng dưới: Số ngày Âm lịch (góc dưới bên phải)
                           Align(
                             alignment: Alignment.bottomRight,
                             child: FittedBox(
@@ -374,8 +494,8 @@ class MonthlyGridView extends StatelessWidget {
                               child: Container(
                                 padding: isMung1OrRam
                                     ? const EdgeInsets.symmetric(
-                                        horizontal: 3.5,
-                                        vertical: 1,
+                                        horizontal: 3,
+                                        vertical: 0.5,
                                       )
                                     : EdgeInsets.zero,
                                 decoration: isMung1OrRam
@@ -383,7 +503,7 @@ class MonthlyGridView extends StatelessWidget {
                                         color: isSelected
                                             ? const Color(0xFFFFD54F)
                                             : const Color(0xFFC62828),
-                                        borderRadius: BorderRadius.circular(4),
+                                        borderRadius: BorderRadius.circular(3),
                                       )
                                     : null,
                                 child: Text(
@@ -391,7 +511,7 @@ class MonthlyGridView extends StatelessWidget {
                                   maxLines: 1,
                                   softWrap: false,
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 9.5,
                                     height: 1.05,
                                     fontWeight: isMung1OrRam
                                         ? FontWeight.w800
@@ -418,19 +538,31 @@ class MonthlyGridView extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // ================= CHÚ THÍCH =================
+            // ================= CHÚ THÍCH CÁC CHỈ BÁO =================
             Wrap(
               alignment: WrapAlignment.center,
-              spacing: 16,
+              spacing: 12,
               runSpacing: 6,
               children: [
                 const _LegendDot(
                   color: Color(0xFFC62828),
-                  label: 'Mùng 1 & Rằm (15 ÂL)',
+                  label: 'Mùng 1 & Rằm',
                 ),
                 const _LegendDot(
                   color: Color(0xFFFFB300),
-                  label: 'Ngày Hoàng Đạo',
+                  label: 'Hoàng Đạo',
+                ),
+                _LegendDot(
+                  color: EventCategory.getColor(EventCategory.gioChap),
+                  label: 'Giỗ chạp',
+                ),
+                _LegendDot(
+                  color: EventCategory.getColor(EventCategory.sinhNhat),
+                  label: 'Sinh nhật',
+                ),
+                _LegendDot(
+                  color: EventCategory.getColor(EventCategory.congViec),
+                  label: 'Công việc',
                 ),
                 Text(
                   'Lưới ${rowCount == 5 ? "7x5" : "7x6"}',
@@ -442,6 +574,435 @@ class MonthlyGridView extends StatelessWidget {
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Hiển thị hàng chấm chỉ báo (Dot indicators) hoặc Badge số lượng trên mỗi ô ngày
+  Widget _buildEventIndicators(List<CalendarEvent> events, bool isSelected) {
+    if (events.isEmpty) {
+      return const SizedBox(height: 5);
+    }
+
+    if (events.length <= 3) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: events.map((e) {
+          final dotColor = EventCategory.getColor(e.category);
+          return Container(
+            width: 5,
+            height: 5,
+            margin: const EdgeInsets.symmetric(horizontal: 1),
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.circle,
+              border: isSelected
+                  ? Border.all(color: Colors.white, width: 0.6)
+                  : null,
+            ),
+          );
+        }).toList(),
+      );
+    } else {
+      // Khi > 3 sự kiện: Hiển thị 2 chấm màu đầu tiên kèm badge số lượng còn lại (+N)
+      final firstTwo = events.take(2).toList();
+      final extraCount = events.length - 2;
+
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ...firstTwo.map((e) {
+            final dotColor = EventCategory.getColor(e.category);
+            return Container(
+              width: 4.5,
+              height: 4.5,
+              margin: const EdgeInsets.symmetric(horizontal: 0.8),
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+                border: isSelected
+                    ? Border.all(color: Colors.white, width: 0.6)
+                    : null,
+              ),
+            );
+          }),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 0.5),
+            margin: const EdgeInsets.only(left: 1),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? const Color(0xFFFFD54F)
+                  : const Color(0xFFA61C1C),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Text(
+              '+$extraCount',
+              style: TextStyle(
+                fontSize: 7.5,
+                fontWeight: FontWeight.w900,
+                height: 1.0,
+                color: isSelected
+                    ? const Color(0xFF8E0000)
+                    : Colors.white,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
+  /// Card tóm tắt chi tiết ngày được chọn + Danh sách các sự kiện/ghi chú diễn ra trong ngày
+  Widget _buildDayDetailAndEventsCard(
+    BuildContext context,
+    List<CalendarEvent> dayEvents,
+  ) {
+    final dayInfo = DayInfo.fromSolarDate(selectedDate);
+
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: const Color(0xFFFFFDF8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(
+          color: const Color(0xFFD4AF37).withValues(alpha: 0.6),
+          width: 1.4,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ================= BANNER THÔNG TIN NGÀY =================
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8EC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: const Color(0xFFD4AF37).withValues(alpha: 0.6),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFA61C1C),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          selectedDate.day.toString().padLeft(2, '0'),
+                          style: const TextStyle(
+                            color: Color(0xFFFFD54F),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${dayInfo.weekdayLabel}, ${selectedDate.day.toString().padLeft(2, '0')}/${selectedDate.month.toString().padLeft(2, '0')}/${selectedDate.year}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14.5,
+                                color: Color(0xFF8E0000),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Âm lịch: ${dayInfo.lunarDate.day}/${dayInfo.lunarDate.month}${dayInfo.lunarDate.isLeap ? " (Nhuận)" : ""}/${dayInfo.lunarDate.year} (${dayInfo.yearCanChi})',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4A2511),
+                              ),
+                            ),
+                            Text(
+                              'Ngày ${dayInfo.dayCanChi} • Trực ${dayInfo.truc.name} (${dayInfo.isHoangDao ? "Hoàng Đạo" : "Hắc Đạo"})',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: Color(0xFF6D4C41),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
+            // ================= TIÊU ĐỀ PHẦN GHI CHÚ & NÚT THÊM =================
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.event_note_rounded,
+                        color: Color(0xFFA61C1C),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Sự Kiện & Ghi Chú (${dayEvents.length})',
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4A2511),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.tonalIcon(
+                    onPressed: () => AddEventDialog.show(
+                      context,
+                      initialDate: selectedDate,
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFF3CD),
+                      foregroundColor: const Color(0xFF8E0000),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 17),
+                    label: const Text(
+                      'Thêm ghi chú',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+
+            // ================= DANH SÁCH CÁC SỰ KIỆN TRONG NGÀY =================
+            if (dayEvents.isEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8EC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.event_available_rounded,
+                      size: 36,
+                      color: const Color(0xFFD4AF37).withValues(alpha: 0.8),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Chưa có sự kiện nào trong ngày này.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF5D4037),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Chạm "Thêm ghi chú" để lưu ngày Giỗ chạp, Sinh nhật hoặc Công việc.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 11.5, color: Color(0xFF795548)),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: dayEvents.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final event = dayEvents[index];
+                  final catColor = EventCategory.getColor(event.category);
+                  final catIcon = EventCategory.getIcon(event.category);
+
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: catColor.withValues(alpha: 0.35),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: catColor.withValues(alpha: 0.06),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: catColor.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(catIcon, color: catColor, size: 18),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 1.5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: catColor.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      event.category,
+                                      style: TextStyle(
+                                        color: catColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                  if (event.isLunarRecurring) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 1.5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF3CD),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Lặp Âm lịch',
+                                        style: TextStyle(
+                                          color: Color(0xFFE65100),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ] else if (event.isSolarRecurring) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 1.5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE3F2FD),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        'Lặp Dương lịch',
+                                        style: TextStyle(
+                                          color: Color(0xFF1976D2),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                event.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Color(0xFF2D1E17),
+                                ),
+                              ),
+                              if (event.note.isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  event.note,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    color: Color(0xFF5D4037),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        // Nút Sửa & Xóa
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              color: const Color(0xFF6D4C41),
+                              visualDensity: VisualDensity.compact,
+                              tooltip: 'Sửa',
+                              onPressed: () => AddEventDialog.show(
+                                context,
+                                initialDate: selectedDate,
+                                existing: event,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                              color: Colors.redAccent,
+                              visualDensity: VisualDensity.compact,
+                              tooltip: 'Xóa',
+                              onPressed: () => EventRepository.instance.deleteEvent(event.id),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
           ],
         ),
       ),
@@ -461,16 +1022,14 @@ class _LegendDot extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 9,
-          height: 9,
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF5D4037)),
-          ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11.5, color: Color(0xFF5D4037)),
         ),
       ],
     );

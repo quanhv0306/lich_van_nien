@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/sync_engine.dart';
 import '../widgets/responsive_layout.dart';
 import 'daily_bloc_view.dart';
 import 'feng_shui_screen.dart';
 import 'monthly_grid_view.dart';
 import 'prayers_screen.dart';
+import 'profile_screen.dart';
+import 'sync_screen.dart';
 
 class HomeAdaptiveScreen extends StatefulWidget {
   const HomeAdaptiveScreen({super.key});
@@ -19,11 +22,11 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
   static const String _prefRightPaneTabKey = 'last_right_pane_tab_index';
 
   /// Tab trên Mobile (< 768px):
-  /// 0: Lịch Ngày | 1: Lịch Tháng | 2: Văn Khấn | 3: Phong Thủy
+  /// 0: Lịch Ngày | 1: Lịch Tháng | 2: Văn Khấn | 3: Phong Thủy | 4: Hồ Sơ | 5: Đồng Bộ
   int _mobileTabIndex = 0;
 
   /// Chế độ công cụ ở cột phải (60%) trên PC/Tablet (>= 768px):
-  /// 0: Lịch Tháng & Tra cứu nhanh | 1: Văn Khấn | 2: Phong Thủy & Đổi ngày
+  /// 0: Lịch Tháng & Tra cứu nhanh | 1: Văn Khấn | 2: Phong Thủy | 3: Hồ Sơ | 4: Đồng Bộ
   int _rightPaneTabIndex = 0;
 
   DateTime _selectedDate = DateTime.now();
@@ -44,10 +47,10 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
       setState(() {
         if (savedMobileTab != null &&
             savedMobileTab >= 0 &&
-            savedMobileTab <= 3) {
+            savedMobileTab <= 5) {
           _mobileTabIndex = savedMobileTab;
         }
-        if (savedRightTab != null && savedRightTab >= 0 && savedRightTab <= 2) {
+        if (savedRightTab != null && savedRightTab >= 0 && savedRightTab <= 4) {
           _rightPaneTabIndex = savedRightTab;
         }
       });
@@ -108,10 +111,40 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
       _stepMonth(1);
       return true;
     } else if (key == LogicalKeyboardKey.home) {
-      _updateSelectedDate(DateTime.now());
+      _goToToday();
       return true;
     }
     return false;
+  }
+
+  void _goToToday() {
+    final now = DateTime.now();
+    setState(() {
+      _selectedDate = DateTime(now.year, now.month, now.day);
+      // Nếu đang ở tab Văn Khấn, Hồ Sơ hoặc Đồng Bộ (không hiển thị lịch), tự chuyển về Lịch Ngày / Lịch Tháng
+      if (_mobileTabIndex == 2 || _mobileTabIndex == 4 || _mobileTabIndex == 5) {
+        _mobileTabIndex = 0;
+      }
+      if (_rightPaneTabIndex == 1 ||
+          _rightPaneTabIndex == 3 ||
+          _rightPaneTabIndex == 4) {
+        _rightPaneTabIndex = 0;
+      }
+    });
+  }
+
+  void _openProfileTab() {
+    setState(() {
+      _mobileTabIndex = 4;
+      _rightPaneTabIndex = 3;
+    });
+  }
+
+  void _openSyncTab() {
+    setState(() {
+      _mobileTabIndex = 5;
+      _rightPaneTabIndex = 4;
+    });
   }
 
   void _updateSelectedDate(DateTime date) {
@@ -188,9 +221,52 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
       ),
       actions: [
         Tooltip(
+          message: 'Hồ sơ Gia chủ & Bản mệnh',
+          child: IconButton(
+            onPressed: _openProfileTab,
+            icon: const Icon(
+              Icons.account_circle_outlined,
+              color: Color(0xFFFFD54F),
+              size: 21,
+            ),
+          ),
+        ),
+        ListenableBuilder(
+          listenable: SyncEngine.instance,
+          builder: (context, _) {
+            final engine = SyncEngine.instance;
+            final isPaired = engine.isPaired;
+            final isDirty = engine.isDirty;
+
+            final IconData syncIcon = !isPaired
+                ? Icons.cloud_off_rounded
+                : (isDirty
+                      ? Icons.cloud_queue_rounded
+                      : Icons.cloud_done_rounded);
+            final Color dotColor = !isPaired
+                ? Colors.white70
+                : (isDirty
+                      ? const Color(0xFFFFB300)
+                      : const Color(0xFF69F0AE));
+            final String tooltipMsg = !isPaired
+                ? 'Đồng bộ đa thiết bị (Chưa ghép đôi)'
+                : (isDirty
+                      ? 'Đang chờ đồng bộ (${engine.formattedSyncCode})'
+                      : 'Đã đồng bộ (${engine.formattedSyncCode})');
+
+            return Tooltip(
+              message: tooltipMsg,
+              child: IconButton(
+                onPressed: _openSyncTab,
+                icon: Icon(syncIcon, color: dotColor, size: 20),
+              ),
+            );
+          },
+        ),
+        Tooltip(
           message: 'Phím tắt: ←/→ Đổi ngày • ↑/↓ Đổi tháng • Home Về hôm nay',
           child: TextButton.icon(
-            onPressed: () => _updateSelectedDate(DateTime.now()),
+            onPressed: _goToToday,
             icon: const Icon(Icons.today, color: Color(0xFFFFD54F), size: 18),
             label: const Text(
               'Hôm nay',
@@ -201,17 +277,44 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
       ],
     );
   }
 
-  /// Giao diện Mobile (< 768px): BottomNavigationBar với 4 tab
-  /// (Lịch Ngày, Lịch Tháng, Văn Khấn, Phong Thủy)
+  /// Giao diện Mobile (< 768px): BottomNavigationBar với 6 tab
+  /// (Lịch Ngày, Lịch Tháng, Văn Khấn, Phong Thủy, Hồ Sơ, Đồng Bộ)
   Widget _buildMobileScaffold() {
     return Scaffold(
       appBar: _buildAppBar(),
-      body: _buildMobileBody(_mobileTabIndex),
+      body: IndexedStack(
+        index: _mobileTabIndex,
+        children: [
+          DailyBlocView(
+            selectedDate: _selectedDate,
+            onDateChanged: _updateSelectedDate,
+          ),
+          MonthlyGridView(
+            selectedDate: _selectedDate,
+            onDateSelected: (date) {
+              _updateSelectedDate(date);
+            },
+          ),
+          const PrayersScreen(),
+          FengShuiScreen(
+            selectedDate: _selectedDate,
+            onDateChanged: _updateSelectedDate,
+          ),
+          ProfileScreen(onOpenSyncScreen: _openSyncTab),
+          SyncScreen(
+            selectedDate: _selectedDate,
+            onSelectEventDate: (date) {
+              _updateSelectedDate(date);
+              _saveMobileTab(0);
+            },
+          ),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _mobileTabIndex,
         onTap: _saveMobileTab,
@@ -219,6 +322,8 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
         backgroundColor: const Color(0xFFFFFDF7),
         selectedItemColor: const Color(0xFFA61C1C),
         unselectedItemColor: const Color(0xFF795548),
+        selectedFontSize: 11,
+        unselectedFontSize: 10.5,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
         items: const [
           BottomNavigationBarItem(
@@ -241,49 +346,25 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
             activeIcon: Icon(Icons.explore),
             label: 'Phong Thủy',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline_rounded),
+            activeIcon: Icon(Icons.person_rounded),
+            label: 'Hồ Sơ',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.cloud_sync_outlined),
+            activeIcon: Icon(Icons.cloud_sync_rounded),
+            label: 'Đồng Bộ',
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMobileBody(int index) {
-    switch (index) {
-      case 0:
-        return DailyBlocView(
-          selectedDate: _selectedDate,
-          onDateChanged: _updateSelectedDate,
-        );
-      case 1:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              MonthlyGridView(
-                selectedDate: _selectedDate,
-                onDateSelected: _updateSelectedDate,
-              ),
-              FengShuiScreen(
-                selectedDate: _selectedDate,
-                onDateChanged: _updateSelectedDate,
-              ),
-            ],
-          ),
-        );
-      case 2:
-        return const PrayersScreen();
-      case 3:
-      default:
-        return FengShuiScreen(
-          selectedDate: _selectedDate,
-          onDateChanged: _updateSelectedDate,
-        );
-    }
-  }
-
   /// Giao diện PC/Tablet (>= 768px):
   /// Kết hợp NavigationRail bên trái + Bố cục 2 cột cố định:
   /// - Cột trái (40%): Tờ lịch Bloc ngày (`DailyBlocView`)
-  /// - Cột phải (60%): Lịch Tháng và công cụ tra cứu (Phong Thủy / Văn Khấn)
+  /// - Cột phải (60%): Lịch Tháng và công cụ tra cứu (Văn Khấn / Phong Thủy / Hồ Sơ / Đồng Bộ)
   Widget _buildWideScaffold() {
     return Scaffold(
       appBar: _buildAppBar(),
@@ -321,6 +402,16 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
                 selectedIcon: Icon(Icons.explore),
                 label: Text('Phong Thủy'),
               ),
+              NavigationRailDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: Text('Hồ Sơ'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.cloud_sync_outlined),
+                selectedIcon: Icon(Icons.cloud_sync_rounded),
+                label: Text('Đồng Bộ'),
+              ),
             ],
           ),
           const VerticalDivider(width: 1, thickness: 1),
@@ -347,10 +438,28 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
                   ),
                 ),
 
-                // Cột phải (60%): Lịch Tháng và công cụ tra cứu
+                // Cột phải (60%): Chuyển đổi giữa Lịch Tháng, Văn Khấn, Phong Thủy, Hồ Sơ, Đồng Bộ
                 Expanded(
                   flex: 6,
-                  child: _buildRightPaneContent(),
+                  child: IndexedStack(
+                    index: _rightPaneTabIndex,
+                    children: [
+                      MonthlyGridView(
+                        selectedDate: _selectedDate,
+                        onDateSelected: _updateSelectedDate,
+                      ),
+                      const PrayersScreen(),
+                      FengShuiScreen(
+                        selectedDate: _selectedDate,
+                        onDateChanged: _updateSelectedDate,
+                      ),
+                      ProfileScreen(onOpenSyncScreen: _openSyncTab),
+                      SyncScreen(
+                        selectedDate: _selectedDate,
+                        onSelectEventDate: _updateSelectedDate,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -358,34 +467,5 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildRightPaneContent() {
-    switch (_rightPaneTabIndex) {
-      case 0:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              MonthlyGridView(
-                selectedDate: _selectedDate,
-                onDateSelected: _updateSelectedDate,
-              ),
-              FengShuiScreen(
-                selectedDate: _selectedDate,
-                onDateChanged: _updateSelectedDate,
-              ),
-            ],
-          ),
-        );
-      case 1:
-        return const PrayersScreen();
-      case 2:
-      default:
-        return FengShuiScreen(
-          selectedDate: _selectedDate,
-          onDateChanged: _updateSelectedDate,
-        );
-    }
   }
 }

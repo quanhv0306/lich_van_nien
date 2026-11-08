@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/sync_engine.dart';
 import '../../data/models/prayer_model.dart';
 import '../../data/repositories/prayer_repository.dart';
+import 'prayer_detail_screen.dart';
 
-/// 1. Trang Văn Khấn:
-/// - Đọc dữ liệu từ `assets/data/prayers.json`.
-/// - Thanh tìm kiếm theo tên hoặc dịp lễ.
-/// - Danh mục lọc theo chip (Tất cả, Tết, Rằm/Mùng 1, Thần Tài, Gia Đình).
-/// - Màn hình chi tiết văn khấn có nút tăng/giảm kích thước chữ rõ ràng để người lớn tuổi dễ đọc.
+/// Màn hình Kho Văn Khấn Cổ Truyền Việt Nam:
+/// - Đọc 22 bài văn khấn chuẩn cổ truyền từ `assets/data/prayers.json` chia theo 4 nhóm lớn:
+///   + Lễ Tết & Đầu năm
+///   + Tiết lễ trong năm
+///   + Gia đình & Đời sống
+///   + Kinh doanh & Điền trạch
+/// - Tích hợp bộ điền nhanh `[Họ tên]` và `[Địa chỉ]` (tự động lưu qua `shared_preferences`
+///   và thay thế trực tiếp vào lời văn khấn).
+/// - Thanh tăng / giảm kích thước chữ rõ nét cho người lớn tuổi.
 class PrayersScreen extends StatefulWidget {
   const PrayersScreen({super.key});
 
@@ -17,45 +23,82 @@ class PrayersScreen extends StatefulWidget {
 
 class _PrayersScreenState extends State<PrayersScreen> {
   static const String _prefFontSizeKey = 'prayer_font_size';
+  static const String _prefUserNameKey = 'prayer_user_fullname';
+  static const String _prefUserAddressKey = 'prayer_user_address';
 
   final PrayerRepository _repository = PrayerRepository();
   List<PrayerModel> _allPrayers = [];
 
   static const List<String> _chipCategories = [
     'Tất cả',
-    'Tết',
-    'Rằm/Mùng 1',
-    'Thần Tài',
-    'Gia Đình',
+    'Lễ Tết & Đầu năm',
+    'Tiết lễ trong năm',
+    'Gia đình & Đời sống',
+    'Kinh doanh & Điền trạch',
   ];
 
   String _selectedChip = 'Tất cả';
   String _searchQuery = '';
   PrayerModel? _selectedPrayer;
   double _fontSize = 18.0;
+  String _userName = '';
+  String _userAddress = '';
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    final p = SyncEngine.instance.profile;
+    _userName = p.fullName;
+    _userAddress = p.address;
+    _fontSize = p.prayerFontSize.clamp(12.0, 36.0);
+    SyncEngine.instance.addListener(_onSyncedProfileChanged);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    SyncEngine.instance.removeListener(_onSyncedProfileChanged);
+    super.dispose();
+  }
+
+  void _onSyncedProfileChanged() {
+    if (!mounted) return;
+    final p = SyncEngine.instance.profile;
+    final clampedSize = p.prayerFontSize.clamp(12.0, 36.0);
+    if (p.fullName != _userName ||
+        p.address != _userAddress ||
+        clampedSize != _fontSize) {
+      setState(() {
+        _userName = p.fullName;
+        _userAddress = p.address;
+        _fontSize = clampedSize;
+      });
+    }
   }
 
   Future<void> _loadData() async {
     final prayers = await _repository.getAllPrayers();
     double savedFontSize = _fontSize;
+    String savedName = '';
+    String savedAddress = '';
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getDouble(_prefFontSizeKey);
-      if (stored != null && stored >= 12.0 && stored <= 36.0) {
-        savedFontSize = stored;
+      final storedSize = prefs.getDouble(_prefFontSizeKey);
+      if (storedSize != null && storedSize >= 12.0 && storedSize <= 36.0) {
+        savedFontSize = storedSize;
       }
+      savedName = prefs.getString(_prefUserNameKey) ?? '';
+      savedAddress = prefs.getString(_prefUserAddressKey) ?? '';
     } catch (_) {}
 
     if (!mounted) return;
     setState(() {
       _allPrayers = prayers;
       _fontSize = savedFontSize;
+      _userName = savedName;
+      _userAddress = savedAddress;
       if (prayers.isNotEmpty) {
         _selectedPrayer = prayers.first;
       }
@@ -69,40 +112,107 @@ class _PrayersScreenState extends State<PrayersScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble(_prefFontSizeKey, newSize);
     } catch (_) {}
+    SyncEngine.instance.updateProfileLocalFirst(prayerFontSize: newSize);
   }
 
-  /// Ánh xạ danh mục gốc trong JSON sang 4 nhóm Chip (Tết, Rằm/Mùng 1, Thần Tài, Gia Đình)
-  bool _matchesCategoryChip(PrayerModel prayer, String chip) {
-    if (chip == 'Tất cả') return true;
-    final cat = prayer.category.toLowerCase();
-    switch (chip) {
-      case 'Tết':
-        return cat.contains('tất niên') ||
-            cat.contains('giao thừa') ||
-            cat.contains('tết');
-      case 'Rằm/Mùng 1':
-        return cat.contains('mùng 1') || cat.contains('rằm');
-      case 'Thần Tài':
-        return cat.contains('thần tài') || cat.contains('khai trương');
-      case 'Gia Đình':
-        return cat.contains('động thổ') ||
-            cat.contains('nhập trạch') ||
-            cat.contains('giỗ') ||
-            cat.contains('gia đình');
-      default:
-        return cat == chip.toLowerCase();
-    }
+  Future<void> _updateUserInfo(String name, String address) async {
+    setState(() {
+      _userName = name.trim();
+      _userAddress = address.trim();
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefUserNameKey, _userName);
+      await prefs.setString(_prefUserAddressKey, _userAddress);
+    } catch (_) {}
+    SyncEngine.instance.updateProfileLocalFirst(
+      fullName: _userName,
+      address: _userAddress,
+    );
+  }
+
+  Future<void> _showPersonalizeDialog() async {
+    final nameController = TextEditingController(text: _userName);
+    final addressController = TextEditingController(text: _userAddress);
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFFFFDF7),
+        title: const Row(
+          children: [
+            Icon(Icons.edit_note_rounded, color: Color(0xFFA61C1C)),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Điền sẵn [Họ tên] & [Địa chỉ] Tín chủ',
+                style: TextStyle(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF8E0000),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Thông tin này sẽ tự động điền vào vị trí [Họ tên] và [Địa chỉ] trong tất cả bài văn khấn để bạn thuận tiện đọc khi hành lễ.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF5D4037)),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Họ và tên Tín chủ',
+                hintText: 'Ví dụ: Nguyễn Văn A',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: addressController,
+              decoration: const InputDecoration(
+                labelText: 'Địa chỉ cư ngụ / hành lễ',
+                hintText: 'Ví dụ: Số 10 phố..., phường..., TP...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFA61C1C),
+            ),
+            onPressed: () {
+              _updateUserInfo(nameController.text, addressController.text);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Lưu thông tin'),
+          ),
+        ],
+      ),
+    );
   }
 
   List<PrayerModel> get _filteredPrayers {
     return _allPrayers.where((p) {
-      final matchesCategory = _matchesCategoryChip(p, _selectedChip);
+      final matchesCategory =
+          _selectedChip == 'Tất cả' || p.category == _selectedChip;
       final q = _searchQuery.trim().toLowerCase();
       final matchesSearch = q.isEmpty ||
           p.title.toLowerCase().contains(q) ||
           p.category.toLowerCase().contains(q) ||
-          p.targetDeity.toLowerCase().contains(q) ||
-          p.prayerBody.toLowerCase().contains(q);
+          p.meaning.toLowerCase().contains(q) ||
+          p.offerings.toLowerCase().contains(q) ||
+          p.content.toLowerCase().contains(q);
       return matchesCategory && matchesSearch;
     }).toList();
   }
@@ -121,12 +231,18 @@ class _PrayersScreenState extends State<PrayersScreen> {
         minChildSize: 0.55,
         maxChildSize: 0.96,
         builder: (context, scrollController) => StatefulBuilder(
-          builder: (context, setModalState) => _PrayerDetailContent(
+          builder: (context, setModalState) => PrayerDetailScreen(
             prayer: prayer,
             fontSize: _fontSize,
+            userName: _userName,
+            userAddress: _userAddress,
             scrollController: scrollController,
             onFontSizeChanged: (newSize) {
               _updateFontSize(newSize);
+              setModalState(() {});
+            },
+            onEditUserInfo: () async {
+              await _showPersonalizeDialog();
               setModalState(() {});
             },
           ),
@@ -149,44 +265,72 @@ class _PrayersScreenState extends State<PrayersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Thanh tìm kiếm theo tên hoặc dịp lễ
-          TextField(
-            onChanged: (value) => setState(() => _searchQuery = value),
-            decoration: InputDecoration(
-              hintText: 'Tìm theo tên bài khấn hoặc dịp lễ (Tết, Rằm, Thần Tài, Nhập trạch...)',
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                color: Color(0xFFA61C1C),
-              ),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      onPressed: () => setState(() => _searchQuery = ''),
-                      icon: const Icon(Icons.clear),
-                    )
-                  : null,
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
+          // Thanh tìm kiếm + Nút điền sẵn [Họ tên] & [Địa chỉ]
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  decoration: InputDecoration(
+                    hintText:
+                        'Tìm bài văn khấn (Táo Quân, Giao thừa, Vu Lan, Khai trương, Thần Tài...)',
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: Color(0xFFA61C1C),
+                    ),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            onPressed: () => setState(() => _searchQuery = ''),
+                            icon: const Icon(Icons.clear),
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: _showPersonalizeDialog,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF8E0000),
+                  backgroundColor: const Color(0xFFFFF8E7),
+                  side: const BorderSide(color: Color(0xFFD4AF37)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.person_pin_rounded, size: 18),
+                label: Text(
+                  _userName.isEmpty ? 'Điền Họ tên' : _userName,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
+            ],
           ),
           const SizedBox(height: 12),
 
-          // Danh mục lọc theo Chip (Tất cả, Tết, Rằm/Mùng 1, Thần Tài, Gia Đình)
+          // Danh mục lọc theo Chip (Tất cả + 4 nhóm nghi lễ truyền thống)
           SizedBox(
             height: 42,
             child: ListView.separated(
@@ -250,10 +394,13 @@ class _PrayersScreenState extends State<PrayersScreen> {
                                         .withValues(alpha: 0.55),
                                   ),
                                 ),
-                                child: _PrayerDetailContent(
+                                child: PrayerDetailScreen(
                                   prayer: _selectedPrayer!,
                                   fontSize: _fontSize,
+                                  userName: _userName,
+                                  userAddress: _userAddress,
                                   onFontSizeChanged: _updateFontSize,
+                                  onEditUserInfo: _showPersonalizeDialog,
                                 ),
                               ),
                       ),
@@ -314,9 +461,28 @@ class _PrayersScreenState extends State<PrayersScreen> {
             ),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '${prayer.category} • ${prayer.targetDeity}',
-                style: TextStyle(fontSize: 12.5, color: Colors.brown.shade600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    prayer.category,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFA61C1C),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    prayer.meaning,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Colors.brown.shade700,
+                    ),
+                  ),
+                ],
               ),
             ),
             trailing: const Icon(Icons.chevron_right),
@@ -329,211 +495,6 @@ class _PrayersScreenState extends State<PrayersScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-class _PrayerDetailContent extends StatelessWidget {
-  final PrayerModel prayer;
-  final double fontSize;
-  final ValueChanged<double> onFontSizeChanged;
-  final ScrollController? scrollController;
-
-  const _PrayerDetailContent({
-    required this.prayer,
-    required this.fontSize,
-    required this.onFontSizeChanged,
-    this.scrollController,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      controller: scrollController,
-      padding: const EdgeInsets.all(20),
-      children: [
-        // Thanh công cụ điều chỉnh kích thước chữ nổi bật cho người lớn tuổi
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF3CD),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFD4AF37)),
-          ),
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.format_size_rounded,
-                    size: 18,
-                    color: Color(0xFF8E0000),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Cỡ chữ đọc khấn: ${fontSize.toInt()}pt',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13.5,
-                      color: Color(0xFF4A2511),
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: fontSize > 14
-                        ? () => onFontSizeChanged(fontSize - 2.0)
-                        : null,
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      foregroundColor: const Color(0xFF8E0000),
-                    ),
-                    icon: const Icon(Icons.text_decrease_rounded, size: 16),
-                    label: const Text('Chữ nhỏ'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: fontSize < 32
-                        ? () => onFontSizeChanged(fontSize + 2.0)
-                        : null,
-                    style: FilledButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      backgroundColor: const Color(0xFFA61C1C),
-                    ),
-                    icon: const Icon(Icons.text_increase_rounded, size: 16),
-                    label: const Text('Chữ to'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Tiêu đề & Đối tượng khấn
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFA61C1C),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              prayer.category,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFFFD54F),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          prayer.title,
-          style: const TextStyle(
-            fontSize: 21,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF4A2511),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Đối tượng khấn: ${prayer.targetDeity}',
-          style: TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
-            color: Colors.brown.shade700,
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Sắm lễ tham khảo
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFDF6E4),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: const Color(0xFFD4AF37).withValues(alpha: 0.45),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.auto_awesome,
-                    size: 18,
-                    color: Color(0xFFA61C1C),
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'Lễ vật sắm lễ tham khảo:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4A2511),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ...prayer.offerings.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2.5),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '• ',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Expanded(
-                        child: Text(
-                          item,
-                          style: TextStyle(fontSize: (fontSize * 0.82).clamp(13.5, 22.0)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 18),
-        const Text(
-          'BÀI VĂN KHẤN CỔ TRUYỀN',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
-            color: Color(0xFFA61C1C),
-          ),
-        ),
-        const Divider(height: 16),
-        SelectableText(
-          prayer.prayerBody,
-          style: TextStyle(
-            fontSize: fontSize,
-            height: 1.75,
-            color: const Color(0xFF2D1E17),
-          ),
-        ),
-      ],
     );
   }
 }

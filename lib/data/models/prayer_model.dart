@@ -2,29 +2,35 @@ class PrayerModel {
   final String id;
   final String title;
   final String category;
-  final String targetDeity;
-  final List<String> offerings;
-  final String prayerBody;
+  final String meaning;
+  final String offerings;
+  final String bestTime;
+  final String content;
 
   const PrayerModel({
     required this.id,
     required this.title,
     required this.category,
-    required this.targetDeity,
+    required this.meaning,
     required this.offerings,
-    required this.prayerBody,
+    required this.bestTime,
+    required this.content,
   });
 
   factory PrayerModel.fromJson(Map<String, dynamic> json) {
+    final dynamic rawOfferings = json['offerings'];
+    final String offeringsStr = rawOfferings is List
+        ? rawOfferings.map((e) => e.toString()).join(', ')
+        : (rawOfferings as String? ?? '');
+
     return PrayerModel(
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
       category: json['category'] as String? ?? '',
-      targetDeity: (json['target_deity'] ?? json['occasion']) as String? ?? '',
-      offerings: (json['offerings'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList(),
-      prayerBody: (json['prayer_body'] ?? json['content']) as String? ?? '',
+      meaning: (json['meaning'] ?? json['target_deity']) as String? ?? '',
+      offerings: offeringsStr,
+      bestTime: (json['best_time'] ?? json['occasion']) as String? ?? '',
+      content: (json['content'] ?? json['prayer_body']) as String? ?? '',
     );
   }
 
@@ -32,8 +38,9 @@ class PrayerModel {
         'id': id,
         'title': title,
         'category': category,
-        'target_deity': targetDeity,
+        'meaning': meaning,
         'offerings': offerings,
-        'prayer_body': prayerBody,
+        'best_time': bestTime,
+        'content': content,
       };
 }
