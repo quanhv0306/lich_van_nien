@@ -28,3 +28,4 @@ flutter:
   assets:
     - assets/data/prayers.json
     - assets/data/feng_shui_rules.json
+    - assets/images/app_icon_master.png

@@ -194,14 +194,18 @@ class _HomeAdaptiveScreenState extends State<HomeAdaptiveScreen> {
       foregroundColor: const Color(0xFFFFD54F),
       elevation: 0,
       titleSpacing: 12,
-      title: const Row(
+      title: Row(
         children: [
-          Icon(
-            Icons.calendar_today_rounded,
-            size: 19,
-            color: Color(0xFFFFD54F),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.asset(
+              'assets/images/app_icon_master.png',
+              width: 24,
+              height: 24,
+              fit: BoxFit.cover,
+            ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Expanded(
             child: FittedBox(
               fit: BoxFit.scaleDown,
