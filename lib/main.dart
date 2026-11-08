@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/feng_shui_engine.dart';
 import 'core/sync_engine.dart';
@@ -48,6 +49,18 @@ class LichVanNienApp extends StatelessWidget {
     return MaterialApp(
       title: 'Lịch Vạn Niên',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('vi', 'VN'),
+        Locale('vi'),
+        Locale('en', 'US'),
+        Locale('en'),
+      ],
+      locale: const Locale('vi', 'VN'),
       theme: baseTheme.copyWith(
         textTheme: baseTheme.textTheme.apply(
           bodyColor: const Color(0xFF2D1E17),

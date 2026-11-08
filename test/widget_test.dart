@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lich_van_nien/core/horoscope_engine.dart';
 import 'package:lich_van_nien/core/lunar_calculator.dart';
@@ -7,6 +8,7 @@ import 'package:lich_van_nien/core/sync_engine.dart';
 import 'package:lich_van_nien/data/models/user_profile.dart';
 import 'package:lich_van_nien/data/repositories/event_repository.dart';
 import 'package:lich_van_nien/main.dart';
+import 'package:lich_van_nien/presentation/widgets/add_event_dialog.dart';
 import 'package:lich_van_nien/presentation/screens/prayer_detail_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -451,6 +453,59 @@ void main() {
       repo.deleteEvent(evtAdded.id);
       final mapAfterDelete = repo.getEventsMapForMonth(11, 2026);
       expect(mapAfterDelete[5]?.length, 2);
+    });
+
+    testWidgets('Kiểm thử hộp thoại AddEventDialog: Bấm "Đổi ngày" hiển thị DatePicker không bị crash/màn hình trắng', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('vi', 'VN'),
+            Locale('vi'),
+            Locale('en'),
+          ],
+          locale: const Locale('vi', 'VN'),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => AddEventDialog.show(context, initialDate: DateTime(2026, 11, 8)),
+                  child: const Text('Open Dialog'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Mở hộp thoại AddEventDialog
+      await tester.tap(find.text('Open Dialog'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Thêm Ghi Chú & Sự Kiện'), findsOneWidget);
+      expect(find.text('Đổi ngày'), findsOneWidget);
+
+      // Chạm vào nút "Đổi ngày"
+      await tester.tap(find.text('Đổi ngày'));
+      await tester.pumpAndSettle();
+
+      // Kiểm tra DatePickerDialog hiển thị hoàn hảo bằng tiếng Việt, không có exception nào
+      expect(tester.takeException(), isNull);
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+
+      // Bấm nút HỦY
+      await tester.tap(find.text('HỦY'));
+      await tester.pumpAndSettle();
+
+      // Vẫn ở trong hộp thoại AddEventDialog an toàn
+      expect(find.text('Thêm Ghi Chú & Sự Kiện'), findsOneWidget);
     });
   });
 }

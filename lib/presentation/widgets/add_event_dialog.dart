@@ -76,18 +76,39 @@ class _AddEventDialogState extends State<AddEventDialog> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _chosenDate,
-      firstDate: DateTime(1900),
-      lastDate: DateTime(2100),
-      locale: const Locale('vi'),
-      helpText: 'CHỌN NGÀY SỰ KIỆN',
-      cancelText: 'HỦY',
-      confirmText: 'CHỌN',
-    );
-    if (picked != null) {
-      setState(() => _chosenDate = picked);
+    try {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: _chosenDate,
+        firstDate: DateTime(1900),
+        lastDate: DateTime(2100),
+        helpText: 'CHỌN NGÀY SỰ KIỆN',
+        cancelText: 'HỦY',
+        confirmText: 'CHỌN',
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: Color(0xFFA61C1C), // Nền tiêu đề lịch & ngày được chọn
+                onPrimary: Color(0xFFFFD54F), // Màu chữ ngày được chọn
+                surface: Color(0xFFFFFDF8), // Nền hộp thoại
+                onSurface: Color(0xFF2D1E17), // Màu chữ các ngày
+              ),
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFA61C1C),
+                ),
+              ),
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
+      );
+      if (picked != null && mounted) {
+        setState(() => _chosenDate = picked);
+      }
+    } catch (e) {
+      debugPrint('[AddEventDialog] Lỗi chọn ngày: $e');
     }
   }
 
