@@ -1,11 +1,11 @@
 {
-    "name": "lich_van_nien",
-    "short_name": "lich_van_nien",
-    "start_url": ".",
+    "name": "Lịch Vạn Niên Âm Dương - Phong Thủy & Văn Khấn",
+    "short_name": "Lịch Vạn Niên",
+    "start_url": "./",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFDF9",
+    "theme_color": "#A61C1C",
+    "description": "Lịch Vạn Niên Âm Dương, Tra cứu Phong Thủy Bản Mệnh và Kho Văn Khấn Cổ Truyền Việt Nam.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
